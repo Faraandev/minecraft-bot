@@ -39,7 +39,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'Schoolserver-L06O.aternos.me', // Change to your server IP or hostname
     port: 35975, // Default Minecraft server port
-    username: getRandomName(),
+    username: 'permenent_bot1',
   });
 
   bot.on('chat', (username, message) => {
