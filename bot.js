@@ -103,6 +103,12 @@ function createBot() {
     setTimeout(createBot, 60000); // Reconnect after 5 seconds
   });
 
+  bot.on('resourcePack', () => {
+    console.log('Server requires a resource pack. Bypassing...');
+    bot.rejectResourcePack(); // Skip downloading the resource pack
+  });
+  
+
   bot.on('error', err => console.log('Error:', err));
 }
 
