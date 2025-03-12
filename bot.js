@@ -6,7 +6,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'Schoolserver-L06O.aternos.me',
     port: 35975,
-    username: 'azlaandagoat'
+    username: 'azlaandagoat12'
   });
 
   bot.loadPlugin(pathfinder);
@@ -103,10 +103,12 @@ function createBot() {
     setTimeout(createBot, 60000); // Reconnect after 5 seconds
   });
 
-  bot.on('resourcePack', () => {
-    console.log('Server requires a resource pack. Bypassing...');
-    bot.rejectResourcePack(); // Skip downloading the resource pack
-  });
+    // Automatically accept resource packs
+    bot.on('resourcePack', () => {
+      console.log('Accepting resource pack...');
+      bot.acceptResourcePack();
+    });
+  
   
 
   bot.on('error', err => console.log('Error:', err));
