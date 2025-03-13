@@ -6,7 +6,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'Schoolserver-L06O.aternos.me',
     port: 35975,
-    username: 'azlaandagoat12'
+    username: `randombot_007` // Random username to avoid conflicts
   });
 
   bot.loadPlugin(pathfinder);
@@ -16,6 +16,7 @@ function createBot() {
   bot.once('spawn', () => {
     console.log('Bot spawned');
     bot.chat('Hello! I am new!');
+    stayActive();
   });
 
   bot.on('chat', (username, message) => {
@@ -24,7 +25,7 @@ function createBot() {
     if (message === '!faraan') {
       mining = true;
       bot.chat('Starting to mine!');
-      mineResources(bot);
+      mineResources();
     }
 
     if (message === '!stop') {
@@ -32,24 +33,21 @@ function createBot() {
       bot.chat('Stopping mining!');
     }
 
-    // Simple chat interaction
     if (message.includes('hello')) bot.chat(`Hello ${username}! How can I help you today?`);
     if (message.includes('how are you')) bot.chat(`I'm just a bot, but I'm always ready to mine and fight!`);
   });
 
-  async function mineResources(bot) {
-    while (mining) {
-      // Find and collect wood
+  async function mineResources() {
+    while (mining && bot.entity) {
       const log = bot.findBlock({
         matching: block => block.name.includes('log'),
         maxDistance: 32
       });
       if (log) {
         bot.chat('Found some wood! Chopping it down.');
-        await bot.collectBlock.collect(log);
+        await bot.collectBlock.collect(log).catch(console.error);
       }
 
-      // Craft wooden pickaxe
       const craftingTable = bot.findBlock({
         matching: block => block.name === 'crafting_table',
         maxDistance: 32
@@ -58,60 +56,71 @@ function createBot() {
         bot.chat('Found a crafting table! Let’s make some tools.');
         await bot.pathfinder.goto(new goals.GoalBlock(craftingTable.position.x, craftingTable.position.y, craftingTable.position.z));
         const woodenPickaxeRecipe = bot.recipesAll('wooden_pickaxe')[0];
-        if (woodenPickaxeRecipe) await bot.craft(woodenPickaxeRecipe, 1, craftingTable);
+        if (woodenPickaxeRecipe) await bot.craft(woodenPickaxeRecipe, 1, craftingTable).catch(console.error);
       }
 
-      // Find and mine stone
       const stone = bot.findBlock({
         matching: block => block.name === 'stone',
         maxDistance: 32
       });
       if (stone) {
         bot.chat('Found some stone! Time to mine.');
-        await bot.dig(stone);
+        await bot.dig(stone).catch(console.error);
       }
 
-      // Night actions: fight mobs
-      if (bot.time.timeOfDay >= 13000 && bot.time.timeOfDay <= 23000) {
-        const mob = bot.nearestEntity(entity => entity.type === 'hostile');
-        if (mob) {
-          bot.chat('A mob! Time to fight!');
-          await bot.attack(mob);
-        }
-      }
-
-      // Day actions: continue mining
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
 
-  // Prevent disconnection when alone - running, jumping, and chatting to self
-  setInterval(() => {
-    if (!mining) {
-      bot.chat('Still here! Just running around.');
-      bot.setControlState('forward', true);
-      bot.setControlState('jump', true);
-      setTimeout(() => {
-        bot.setControlState('forward', false);
-        bot.setControlState('jump', false);
-      }, 50000); // Run and jump for 5 seconds
-    }
-  }, 60000); // Every minute
+  function stayActive() {
+    setInterval(() => {
+      if (!mining && bot.entity) {
+        bot.chat('Still here! Just moving a bit.');
+        bot.setControlState('forward', true);
+        bot.setControlState('jump', true);
+        setTimeout(() => {
+          bot.setControlState('forward', false);
+          bot.setControlState('jump', false);
+        }, 5000);
+      }
+    }, 60000);
+  }
 
-  bot.on('end', () => {
-    console.log('Bot disconnected, reconnecting...');
-    setTimeout(createBot, 60000); // Reconnect after 5 seconds
+  bot.on('end', (reason) => {
+    console.log(`Bot disconnected: ${reason}. Reconnecting in 1 minute...`);
+    setTimeout(createBot, 60000);
   });
 
-    // Automatically accept resource packs
-    bot.on('resourcePack', () => {
-      console.log('Accepting resource pack...');
-      bot.acceptResourcePack();
-    });
-  
-  
+  bot.on('kicked', (reason) => {
+    console.log(`Bot was kicked: ${reason}`);
+  });
 
-  bot.on('error', err => console.log('Error:', err));
+  bot.on('error', (err) => {
+    if (err.message.includes('passengers')) return; // Ignore passenger-related errors
+    console.error('Bot error:', err);
+  });
+
+  bot.on('resourcePack', async () => {
+    try {
+      console.log('Server requested a resource pack. Accepting...');
+      await bot.acceptResourcePack();
+      console.log('Resource pack accepted successfully.');
+    } catch (err) {
+      console.error('Failed to accept resource pack:', err);
+    }
+  });
+
+  // Extra safe fix for vehicle/passenger-related crashes
+  bot._client.on('set_passengers', (packet) => {
+    if (!packet || typeof packet.vehicleId === 'undefined' || !Array.isArray(packet.passengerIds)) return;
+
+    const vehicle = bot.entities[packet.vehicleId];
+    if (!vehicle) return;
+
+    vehicle.passengers = packet.passengerIds
+      .map(id => bot.entities[id])
+      .filter(entity => entity); // Filter out null/undefined passengers
+  });
 }
 
 createBot();
