@@ -6,7 +6,7 @@ function createBot() {
   const bot = mineflayer.createBot({
     host: 'Schoolserver-L06O.aternos.me',
     port: 35975,
-    username: `randombot_007` // Random username to avoid conflicts
+    username: `faraanbot` // Random username to avoid conflicts
   });
 
   bot.loadPlugin(pathfinder);
